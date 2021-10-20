@@ -1,61 +1,14 @@
 import {nanoid} from 'nanoid';
 import {create} from 'xmlbuilder2';
-import {arrowTypes, ErdShape, KeyTypes} from './erdShape';
+import {ArrowKeys, arrowTypes, ErdShape} from './erdShape';
 import * as fs from 'fs/promises';
 import inquirer from 'inquirer';
 import * as process from 'process';
 import {FuzzyPathQuestionOptions} from 'inquirer-fuzzy-path';
-import {Database, Endpoint, Field, Ref, RelationalId, ShapeBuild} from './types/types';
-import path from 'path';
+import {Database, Endpoint, RelationalId} from './types/types';
+import {buildColumnName, getFieldType} from './helpers';
 
 const {Parser, ModelExporter} = require('@dbml/core');
-
-function buildColumnName(field: Field) {
-  let name = `${field.name} ${field.type.type_name.toUpperCase()}`;
-
-  const args: string[] = [];
-
-  if (field.pk) {
-    args.push('PRIMARY KEY');
-  }
-
-  if (field.increment) {
-    args.push('AUTO INCREMENT');
-  }
-
-  if (field.unique) {
-    args.push('UNIQUE');
-  }
-
-  if (field.not_null) {
-    args.push('NOT NULL');
-  }
-
-  if (field.dbdefault) {
-    args.push(`DEFAULT = ${field.dbdefault.value}`);
-  }
-
-  if (args.length > 0) {
-    name += ' [' + args.join(', ') + ']';
-  }
-
-  return name;
-}
-
-function getFieldType(field: Field, refs: Ref[]) {
-  if (field.pk) {
-    return KeyTypes.pk;
-  }
-
-  const fieldEndpoint = refs.flatMap(ref => ref.endpoints)
-    .find(endpoint => endpoint.fieldNames.includes(field.name));
-
-  if (fieldEndpoint && fieldEndpoint.relation === '*') {
-    return KeyTypes.fk;
-  }
-
-  return KeyTypes.none;
-}
 
 async function main() {
   inquirer.registerPrompt('fuzzypath', require('inquirer-fuzzy-path'));
@@ -127,14 +80,14 @@ async function main() {
       const tableHeight = (30 * table.fields.length) + 30;
       const y = previousY + previousHeight + 20;
 
-      const erdShape = new ErdShape(table.name, 120, tableHeight, x, y);
+      const erdShape = new ErdShape(table.name, 120, tableHeight, x, y, table.alias ?? '');
 
       previousHeight = tableHeight;
       previousY = y;
 
       table.fields.forEach(field => {
         const name = buildColumnName(field);
-        const type = getFieldType(field, schema.refs);
+        const type = getFieldType(field, table.name, schema.refs, table.alias ?? '');
 
         const requiredWidth = (((name.length * 8) + (13.333333333333332 * 2)) + 50);
         const requiredWidthPt = requiredWidth * 0.75;
@@ -159,7 +112,7 @@ async function main() {
 
           if (targetRelationalId &&
             endpoint.fieldNames.includes(targetRelationalId.name) &&
-            endpoint.tableName === shape.tableTitle) {
+            (endpoint.tableName === shape.tableTitle || endpoint.tableName === shape.alias)) {
             refPairs.push({endpoint, shape, targetRelationalId});
           }
         });
@@ -172,8 +125,8 @@ async function main() {
       const source = refPairs[0];
       const foreignKey = refPairs[1];
 
-      source.shape.appendArrow(arrowTypes[source.endpoint.relation],
-        arrowTypes[foreignKey.endpoint.relation],
+      source.shape.appendArrow(arrowTypes[source.endpoint.relation as ArrowKeys],
+        arrowTypes[foreignKey.endpoint.relation as ArrowKeys],
         source.targetRelationalId.id,
         foreignKey.targetRelationalId.id);
     });

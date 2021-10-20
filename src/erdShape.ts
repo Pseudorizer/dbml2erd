@@ -17,14 +17,17 @@ export enum KeyTypes {
   none = ''
 }
 
-export const arrowTypes: { [id: string] : string} = {
-  ['1']: 'ERmandOne',
-  ['*']: 'ERoneToMany'
+export type ArrowKeys = '1' | '*';
+
+export const arrowTypes: Record<ArrowKeys, string> = {
+  '1': 'ERmandOne',
+  '*': 'ERoneToMany'
 };
 
 export class ErdShape {
   xml: XMLBuilder;
   tableTitle: string;
+  alias: string;
   id: string;
   index = 0;
   fields: { value: string, type: KeyTypes }[] = [];
@@ -38,13 +41,15 @@ export class ErdShape {
     width  = 120,
     height = 60,
     x      = 120,
-    y      = 120) {
+    y      = 120,
+    alias  = '') {
     this.tableTitle = tableTitle;
     this.width = width;
     this.height = height;
     this.x = x;
     this.y = y;
     this.id = customAlphabet('abcdefghijklmnopqrstuvwxy0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ', 20)();
+    this.alias = alias;
     this.xml = create()
       .ele('root');
   }
@@ -99,6 +104,7 @@ export class ErdShape {
       isPk ? ErdPkRowContainer : ErdRowContainer,
       parent,
       {vertex: '1'});
+
     containerMxCell.ele('mxGeometry', {y: '30', width: this.width, height: rowHeight, as: 'geometry'});
 
     if (fieldType !== KeyTypes.none) {
@@ -110,11 +116,13 @@ export class ErdShape {
     }
 
     const {mxCell: keyMxCell} = this._addMxCell(key, buildFontStyle(true), containerId, {vertex: '1'});
-    keyMxCell.ele('mxGeometry', {width: keyWidth, height: rowHeight, as: 'geometry'})
+    keyMxCell
+      .ele('mxGeometry', {width: keyWidth, height: rowHeight, as: 'geometry'})
       .ele('mxRectangle', {width: keyWidth, height: rowHeight, as: 'alternateBounds'});
 
     const {mxCell: valueMxCell} = this._addMxCell(value, buildFontStyle(isPk, isPk), containerId, {vertex: '1'});
-    valueMxCell.ele('mxGeometry', {width: fieldWidth, height: rowHeight, as: 'geometry'})
+    valueMxCell
+      .ele('mxGeometry', {width: fieldWidth, height: rowHeight, as: 'geometry'})
       .ele('mxRectangle', {width: fieldWidth, height: rowHeight, as: 'alternateBounds'});
   }
 }
